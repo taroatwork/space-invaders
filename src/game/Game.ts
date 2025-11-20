@@ -37,6 +37,7 @@ export class Game {
   private readonly SHOOT_COOLDOWN_FRAMES = 15; // Fire every 15 frames (~0.25 seconds)
   private readonly MAX_BULLETS = 3; // Maximum bullets on screen
   private gameOverPlayed: boolean = false; // Track if game over melody played
+  private isPaused: boolean = false; // Track pause state
 
   // UFO state
   private ufoSpawnTimer: number = 0;
@@ -128,6 +129,11 @@ export class Game {
         this.restart();
       }
 
+      // Toggle pause on P key (PC only)
+      if (e.key.toLowerCase() === 'p' && this.state.phase === GamePhase.PLAYING) {
+        this.togglePause();
+      }
+
       e.preventDefault();
     });
 
@@ -206,6 +212,17 @@ export class Game {
     fireBtn.addEventListener('touchend', (e) => {
       e.preventDefault();
       this.keys.delete(' ');
+    });
+
+    // Canvas tap to toggle pause (mobile only)
+    const canvas = this.renderer.getCanvas();
+    canvas.addEventListener('touchstart', (e) => {
+      // Only pause if tap is on canvas, not on control buttons
+      const target = e.target as HTMLElement;
+      if (target === canvas && this.state.phase === GamePhase.PLAYING) {
+        e.preventDefault();
+        this.togglePause();
+      }
     });
   }
 
@@ -306,6 +323,13 @@ export class Game {
   }
 
   /**
+   * Toggle pause state
+   */
+  private togglePause(): void {
+    this.isPaused = !this.isPaused;
+  }
+
+  /**
    * Main game loop (60 FPS target)
    */
   private gameLoop(timestamp: number): void {
@@ -325,6 +349,7 @@ export class Game {
    */
   private update(): void {
     if (this.state.phase !== GamePhase.PLAYING) return;
+    if (this.isPaused) return;
 
     // Handle player input
     this.handleInput();
@@ -794,6 +819,23 @@ export class Game {
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const restartMsg = isTouchDevice ? 'TAP FIRE TO RESTART' : 'PRESS SPACE TO RESTART';
       this.renderer.drawTextCentered(restartMsg, 140, '#FFFFFF');
+    }
+
+    // Draw pause overlay
+    if (this.isPaused && this.state.phase === GamePhase.PLAYING) {
+      // Draw semi-transparent background overlay
+      this.renderer.drawRect({
+        x: 0,
+        y: 0,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+      }, 'rgba(0, 0, 0, 0.5)');
+
+      this.renderer.drawTextCentered('PAUSED', 120, '#FFFF00');
+      // Show different message for touch devices
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const resumeMsg = isTouchDevice ? 'TAP SCREEN TO RESUME' : 'PRESS P TO RESUME';
+      this.renderer.drawTextCentered(resumeMsg, 140, '#FFFFFF');
     }
   }
 
