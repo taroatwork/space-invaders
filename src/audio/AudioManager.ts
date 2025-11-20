@@ -23,6 +23,12 @@ export class AudioManager {
 
     try {
       this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+
+      // Resume AudioContext for iOS - required due to autoplay policy
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume();
+      }
+
       this.isInitialized = true;
     } catch (e) {
       console.warn('Web Audio API not supported:', e);
