@@ -487,6 +487,7 @@ export class Game {
       // All invaders destroyed - next stage
       this.state.stage++;
       this.initializeInvaders();
+      this.initializeShields(); // Reset shields for new stage
       return;
     }
 
