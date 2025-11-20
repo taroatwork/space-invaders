@@ -66,12 +66,12 @@ export const INVADER = {
 
 // Missile settings
 export const MISSILE = {
-  WIDTH: 3,
-  HEIGHT: 7,
+  WIDTH: 1,
+  HEIGHT: 4,
   SLOW_SPEED: 1.33,      // ~4 pixels every 3 frames
   FAST_SPEED: 1.66,      // ~5 pixels every 3 frames
   WIGGLY_SPEED: 1.33,
-  WIGGLY_AMPLITUDE: 3,
+  WIGGLY_AMPLITUDE: 2,
 } as const;
 
 // Shield settings

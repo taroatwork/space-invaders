@@ -28,12 +28,16 @@ export class Renderer {
   }
 
   private setupCanvas(): void {
-    // Set logical resolution
-    this.canvas.width = CANVAS_WIDTH;
-    this.canvas.height = CANVAS_HEIGHT;
-
-    // Calculate scale to fit screen
+    // Calculate scale to fit screen first
     this.calculateScale();
+
+    // Set high-resolution canvas (5x for crisp graphics)
+    const pixelRatio = 5;
+    this.canvas.width = CANVAS_WIDTH * pixelRatio;
+    this.canvas.height = CANVAS_HEIGHT * pixelRatio;
+
+    // Scale the context to draw at 1:1
+    this.ctx.scale(pixelRatio, pixelRatio);
 
     // Apply pixel-perfect rendering
     this.ctx.imageSmoothingEnabled = false;
@@ -111,10 +115,13 @@ export class Renderer {
 
   /**
    * Draw text (for HUD, scores, etc.)
+   * Using pixel font for crisp rendering
    */
   drawText(text: string, x: number, y: number, color: string = COLORS.WHITE): void {
     this.ctx.fillStyle = color;
-    this.ctx.font = '8px "Courier New", monospace';
+    // Use a pixel-perfect font setting
+    this.ctx.font = 'bold 6px monospace';
+    this.ctx.textBaseline = 'top';
     this.ctx.fillText(text, x, y);
   }
 
@@ -123,7 +130,8 @@ export class Renderer {
    */
   drawTextCentered(text: string, y: number, color: string = COLORS.WHITE): void {
     this.ctx.fillStyle = color;
-    this.ctx.font = '8px "Courier New", monospace';
+    this.ctx.font = 'bold 6px monospace';
+    this.ctx.textBaseline = 'top';
     const metrics = this.ctx.measureText(text);
     const x = (CANVAS_WIDTH - metrics.width) / 2;
     this.ctx.fillText(text, x, y);
