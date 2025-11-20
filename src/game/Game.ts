@@ -139,6 +139,118 @@ export class Game {
     canvas.addEventListener('keydown', (e) => {
       e.preventDefault();
     });
+
+    // Setup touch controls for mobile
+    this.setupTouchControls();
+  }
+
+  /**
+   * Setup touch controls for mobile devices
+   */
+  private setupTouchControls(): void {
+    // Only show touch controls on touch devices
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (!isTouchDevice) return;
+
+    // Create touch control container
+    const container = document.createElement('div');
+    container.id = 'touch-controls';
+    container.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 1000;
+    `;
+
+    // Left button
+    const leftBtn = this.createTouchButton('◀', 'left');
+
+    // Fire button
+    const fireBtn = this.createTouchButton('FIRE', 'fire');
+    fireBtn.style.fontSize = '16px';
+
+    // Right button
+    const rightBtn = this.createTouchButton('▶', 'right');
+
+    // All buttons container (centered)
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'display: flex; gap: 55px; pointer-events: auto;';
+    btnContainer.appendChild(leftBtn);
+    btnContainer.appendChild(fireBtn);
+    btnContainer.appendChild(rightBtn);
+
+    container.appendChild(btnContainer);
+    document.body.appendChild(container);
+
+    // Touch event handlers
+    this.addTouchHandler(leftBtn, 'arrowleft');
+    this.addTouchHandler(rightBtn, 'arrowright');
+
+    // Fire button special handling
+    fireBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!this.audioManager.isReady()) {
+        this.audioManager.init();
+      }
+      this.keys.add(' ');
+
+      // Restart if game over
+      if (this.state.phase === GamePhase.GAME_OVER) {
+        this.restart();
+      }
+    });
+    fireBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      this.keys.delete(' ');
+    });
+  }
+
+  /**
+   * Create a touch button element
+   */
+  private createTouchButton(label: string, id: string): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.id = `touch-${id}`;
+    btn.textContent = label;
+    btn.style.cssText = `
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid #00ff00;
+      background: rgba(0, 255, 0, 0.2);
+      color: #00ff00;
+      font-size: 24px;
+      font-family: monospace;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    `;
+    return btn;
+  }
+
+  /**
+   * Add touch event handlers for movement buttons
+   */
+  private addTouchHandler(btn: HTMLButtonElement, key: string): void {
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!this.audioManager.isReady()) {
+        this.audioManager.init();
+      }
+      this.keys.add(key);
+    });
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      this.keys.delete(key);
+    });
+    btn.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      this.keys.delete(key);
+    });
   }
 
   /**
@@ -677,7 +789,10 @@ export class Game {
       }, 'rgba(0, 0, 0, 0.7)');
 
       this.renderer.drawTextCentered('GAME OVER', 120, '#FF0000');
-      this.renderer.drawTextCentered('PRESS SPACE TO RESTART', 140, '#FFFFFF');
+      // Show different message for touch devices
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const restartMsg = isTouchDevice ? 'TAP FIRE TO RESTART' : 'PRESS SPACE TO RESTART';
+      this.renderer.drawTextCentered(restartMsg, 140, '#FFFFFF');
     }
   }
 
