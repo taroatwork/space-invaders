@@ -25,8 +25,11 @@ export class AudioManager {
       this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
 
       // Resume AudioContext for iOS - required due to autoplay policy
+      // Must be called as promise for Chrome on iOS
       if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
+        this.audioContext.resume().catch(() => {
+          // Ignore errors, will retry on next interaction
+        });
       }
 
       this.isInitialized = true;
@@ -36,11 +39,21 @@ export class AudioManager {
   }
 
   /**
+   * Ensure audio context is resumed (call before playing sounds)
+   */
+  private ensureResumed(): void {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
+  }
+
+  /**
    * Play the 4-note bass line (cycles through notes)
    * Called when invaders move
    */
   playBassNote(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
@@ -69,6 +82,7 @@ export class AudioManager {
    */
   playShoot(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
@@ -94,6 +108,7 @@ export class AudioManager {
    */
   playInvaderExplosion(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
@@ -119,6 +134,7 @@ export class AudioManager {
    */
   playPlayerExplosion(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
@@ -144,6 +160,7 @@ export class AudioManager {
    */
   playShieldHit(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
@@ -169,6 +186,7 @@ export class AudioManager {
    */
   playGameOver(): void {
     if (!this.audioContext) return;
+    this.ensureResumed();
 
     // Descending melody notes (sad game over tune)
     const notes = [392, 349, 330, 294, 262]; // G4, F4, E4, D4, C4
@@ -201,6 +219,7 @@ export class AudioManager {
    */
   playUFO(): () => void {
     if (!this.audioContext) return () => {};
+    this.ensureResumed();
 
     const oscillator = this.audioContext.createOscillator();
     const gainNode = this.audioContext.createGain();
