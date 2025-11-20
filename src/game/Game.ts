@@ -8,11 +8,13 @@ import { Bullet } from './entities/Bullet';
 import { Invader } from './entities/Invader';
 import { Shield } from './entities/Shield';
 import { Missile } from './entities/Missile';
+import { AudioManager } from '@/audio/AudioManager';
 import { INVADER, FRAME_TIME, CANVAS_WIDTH, CANVAS_HEIGHT, SHIELD } from './utils/constants';
 import { InvaderType, MissileType, GamePhase, type GameState, type Difficulty } from '@/types';
 
 export class Game {
   private renderer: Renderer;
+  private audioManager: AudioManager;
   private player: Player;
   private bullets: Bullet[] = []; // Changed to array for multiple bullets
   private invaders: Invader[] = [];
@@ -32,9 +34,11 @@ export class Game {
   private shootCooldown: number = 0; // Cooldown counter for continuous shooting
   private readonly SHOOT_COOLDOWN_FRAMES = 15; // Fire every 15 frames (~0.25 seconds)
   private readonly MAX_BULLETS = 3; // Maximum bullets on screen
+  private gameOverPlayed: boolean = false; // Track if game over melody played
 
   constructor(canvasId: string) {
     this.renderer = new Renderer(canvasId);
+    this.audioManager = new AudioManager();
     this.player = new Player();
 
     // Initialize game state
@@ -103,6 +107,11 @@ export class Game {
     canvas.focus();
 
     window.addEventListener('keydown', (e) => {
+      // Initialize audio on first user interaction
+      if (!this.audioManager.isReady()) {
+        this.audioManager.init();
+      }
+
       this.keys.add(e.key.toLowerCase());
 
       // Restart on spacebar when game over
@@ -150,6 +159,10 @@ export class Game {
 
     // Reset shooting cooldown
     this.shootCooldown = 0;
+
+    // Reset audio
+    this.audioManager.resetBassSequence();
+    this.gameOverPlayed = false;
 
     // Reinitialize invaders and shields
     this.initializeInvaders();
@@ -210,6 +223,10 @@ export class Game {
     // Check game over
     if (this.state.lives <= 0) {
       this.state.phase = GamePhase.GAME_OVER;
+      if (!this.gameOverPlayed) {
+        this.audioManager.playGameOver();
+        this.gameOverPlayed = true;
+      }
     }
   }
 
@@ -247,6 +264,7 @@ export class Game {
       const x = this.player.position.x + 6; // Center of player
       const y = this.player.position.y - 4;
       this.bullets.push(new Bullet(x, y));
+      this.audioManager.playShoot();
     }
   }
 
@@ -316,6 +334,7 @@ export class Game {
     if (this.invaderMoveCounter >= moveSpeed) {
       this.invaderMoveCounter = 0;
       this.moveInvaderFormation();
+      this.audioManager.playBassNote();
 
       // Toggle animation frame
       this.invaderAnimFrame = (this.invaderAnimFrame + 1) % 2;
@@ -388,6 +407,7 @@ export class Game {
           // Pixel-perfect collision with shield
           if (shield.checkCollision(bulletCenterX, bulletCenterY, 2)) {
             bullet.destroy();
+            this.audioManager.playShieldHit();
             break;
           }
         }
@@ -404,6 +424,7 @@ export class Game {
             invader.kill();
             bullet.destroy();
             this.state.score += invader.getPoints();
+            this.audioManager.playInvaderExplosion();
 
             if (this.state.score > this.state.hiScore) {
               this.state.hiScore = this.state.score;
@@ -429,6 +450,7 @@ export class Game {
         this.player.kill();
         missile.destroy();
         this.state.lives--;
+        this.audioManager.playPlayerExplosion();
 
         // Reset player after short delay (simplified - just reset immediately)
         if (this.state.lives > 0) {
@@ -445,6 +467,7 @@ export class Game {
           // Pixel-perfect collision with shield (larger damage for missiles)
           if (shield.checkCollision(missileCenterX, missileCenterY, 3)) {
             missile.destroy();
+            this.audioManager.playShieldHit();
             break;
           }
         }
