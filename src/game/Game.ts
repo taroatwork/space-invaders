@@ -8,6 +8,7 @@ import { Bullet } from './entities/Bullet';
 import { Invader } from './entities/Invader';
 import { Shield } from './entities/Shield';
 import { Missile } from './entities/Missile';
+import { UFO } from './entities/UFO';
 import { AudioManager } from '@/audio/AudioManager';
 import { INVADER, FRAME_TIME, CANVAS_WIDTH, CANVAS_HEIGHT, SHIELD } from './utils/constants';
 import { InvaderType, MissileType, GamePhase, type GameState, type Difficulty } from '@/types';
@@ -20,6 +21,7 @@ export class Game {
   private invaders: Invader[] = [];
   private shields: Shield[] = [];
   private missiles: Missile[] = [];
+  private ufo: UFO;
 
   private state: GameState;
   private lastFrameTime: number = 0;
@@ -36,10 +38,17 @@ export class Game {
   private readonly MAX_BULLETS = 3; // Maximum bullets on screen
   private gameOverPlayed: boolean = false; // Track if game over melody played
 
+  // UFO state
+  private ufoSpawnTimer: number = 0;
+  private ufoSoundStop: (() => void) | null = null;
+  private shotCount: number = 0; // Track shots for UFO scoring
+  private ufoScoreDisplay: { x: number; y: number; score: number; timer: number } | null = null;
+
   constructor(canvasId: string) {
     this.renderer = new Renderer(canvasId);
     this.audioManager = new AudioManager();
     this.player = new Player();
+    this.ufo = new UFO();
 
     // Initialize game state
     this.state = {
@@ -164,6 +173,16 @@ export class Game {
     this.audioManager.resetBassSequence();
     this.gameOverPlayed = false;
 
+    // Reset UFO
+    this.ufo = new UFO();
+    this.ufoSpawnTimer = 0;
+    if (this.ufoSoundStop) {
+      this.ufoSoundStop();
+      this.ufoSoundStop = null;
+    }
+    this.shotCount = 0;
+    this.ufoScoreDisplay = null;
+
     // Reinitialize invaders and shields
     this.initializeInvaders();
     this.initializeShields();
@@ -217,6 +236,17 @@ export class Game {
     // Randomly fire missiles from invaders
     this.fireRandomMissile();
 
+    // Update UFO
+    this.updateUFO();
+
+    // Update UFO score display timer
+    if (this.ufoScoreDisplay) {
+      this.ufoScoreDisplay.timer--;
+      if (this.ufoScoreDisplay.timer <= 0) {
+        this.ufoScoreDisplay = null;
+      }
+    }
+
     // Check collisions
     this.checkCollisions();
 
@@ -265,6 +295,7 @@ export class Game {
       const y = this.player.position.y - 4;
       this.bullets.push(new Bullet(x, y));
       this.audioManager.playShoot();
+      this.shotCount++;
     }
   }
 
@@ -278,6 +309,29 @@ export class Game {
 
     // Remove inactive missiles
     this.missiles = this.missiles.filter(m => m.active);
+  }
+
+  /**
+   * Update UFO (mystery ship)
+   */
+  private updateUFO(): void {
+    if (this.ufo.isActive()) {
+      this.ufo.update();
+
+      // Stop sound if UFO left screen
+      if (!this.ufo.isActive() && this.ufoSoundStop) {
+        this.ufoSoundStop();
+        this.ufoSoundStop = null;
+      }
+    } else {
+      // Spawn UFO randomly (approximately every 20-30 seconds)
+      this.ufoSpawnTimer++;
+      if (this.ufoSpawnTimer > 1200 && Math.random() < 0.005) {
+        this.ufo.spawn();
+        this.ufoSoundStop = this.audioManager.playUFO();
+        this.ufoSpawnTimer = 0;
+      }
+    }
   }
 
   /**
@@ -409,6 +463,35 @@ export class Game {
             bullet.destroy();
             this.audioManager.playShieldHit();
             break;
+          }
+        }
+      }
+
+      // Check bullet vs UFO
+      if (bullet.active && this.ufo.isActive()) {
+        const ufoBox = this.ufo.getCollisionBox();
+        if (this.isColliding(bulletBox, ufoBox)) {
+          const ufoScore = this.ufo.kill(this.shotCount);
+          this.state.score += ufoScore;
+          bullet.destroy();
+          this.audioManager.playInvaderExplosion();
+
+          // Show score at UFO position
+          this.ufoScoreDisplay = {
+            x: ufoBox.x,
+            y: ufoBox.y,
+            score: ufoScore,
+            timer: 60 // Display for 1 second (60 frames)
+          };
+
+          // Stop UFO sound
+          if (this.ufoSoundStop) {
+            this.ufoSoundStop();
+            this.ufoSoundStop = null;
+          }
+
+          if (this.state.score > this.state.hiScore) {
+            this.state.hiScore = this.state.score;
           }
         }
       }
@@ -550,6 +633,26 @@ export class Game {
           height: 1,
         });
       }
+    }
+
+    // Draw UFO
+    if (this.ufo.isActive()) {
+      this.renderer.drawSprite(
+        this.ufo.position.x,
+        this.ufo.position.y,
+        this.ufo.getSprite(),
+        '#FF0000' // UFO is always red
+      );
+    }
+
+    // Draw UFO score display
+    if (this.ufoScoreDisplay) {
+      this.renderer.drawText(
+        this.ufoScoreDisplay.score.toString(),
+        this.ufoScoreDisplay.x,
+        this.ufoScoreDisplay.y,
+        '#FF0000'
+      );
     }
 
     // Draw invaders
