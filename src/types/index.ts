@@ -25,6 +25,7 @@ export enum GamePhase {
   TITLE = 'TITLE',
   PLAYING = 'PLAYING',
   PAUSED = 'PAUSED',
+  STAGE_CLEAR = 'STAGE_CLEAR',
   GAME_OVER = 'GAME_OVER',
   NAME_ENTRY = 'NAME_ENTRY',
 }

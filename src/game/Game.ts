@@ -38,6 +38,7 @@ export class Game {
   private readonly MAX_BULLETS = 3; // Maximum bullets on screen
   private gameOverPlayed: boolean = false; // Track if game over melody played
   private isPaused: boolean = false; // Track pause state
+  private stageClearTimer: number = 0; // Timer for stage clear display
 
   // UFO state
   private ufoSpawnTimer: number = 0;
@@ -348,6 +349,23 @@ export class Game {
    * Update game state
    */
   private update(): void {
+    // Handle stage clear timer
+    if (this.state.phase === GamePhase.STAGE_CLEAR) {
+      this.stageClearTimer--;
+      if (this.stageClearTimer <= 0) {
+        // Proceed to next stage
+        this.state.stage++;
+        this.initializeInvaders();
+        this.initializeShields();
+        this.bullets = [];
+        this.missiles = [];
+        this.ufo = new UFO();
+        this.ufoSpawnTimer = 0;
+        this.state.phase = GamePhase.PLAYING;
+      }
+      return;
+    }
+
     if (this.state.phase !== GamePhase.PLAYING) return;
     if (this.isPaused) return;
 
@@ -509,10 +527,15 @@ export class Game {
     this.aliveInvaderCount = this.invaders.filter(inv => inv.alive).length;
 
     if (this.aliveInvaderCount === 0) {
-      // All invaders destroyed - next stage
-      this.state.stage++;
-      this.initializeInvaders();
-      this.initializeShields(); // Reset shields for new stage
+      // All invaders destroyed - show stage clear
+      this.state.phase = GamePhase.STAGE_CLEAR;
+      this.stageClearTimer = 120; // 2 seconds at 60fps
+
+      // Stop UFO sound if playing
+      if (this.ufoSoundStop) {
+        this.ufoSoundStop();
+        this.ufoSoundStop = null;
+      }
       return;
     }
 
@@ -836,6 +859,20 @@ export class Game {
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const resumeMsg = isTouchDevice ? 'TAP SCREEN TO RESUME' : 'PRESS P TO RESUME';
       this.renderer.drawTextCentered(resumeMsg, 140, '#FFFFFF');
+    }
+
+    // Draw stage clear overlay
+    if (this.state.phase === GamePhase.STAGE_CLEAR) {
+      // Draw semi-transparent background overlay
+      this.renderer.drawRect({
+        x: 0,
+        y: 0,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+      }, 'rgba(0, 0, 0, 0.7)');
+
+      this.renderer.drawTextCentered('STAGE CLEAR', 110, '#00FF00');
+      this.renderer.drawTextCentered(`NEXT: STAGE ${this.state.stage + 1}`, 135, '#FFFFFF');
     }
   }
 
